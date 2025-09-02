@@ -24,11 +24,11 @@ public class UserSessionService {
     }
 
     public Optional<UserSession> findByUserId(UUID userId) {
-        return repo.findByIdUserId(userId);
+        return repo.findByEmbeddedKeyUserId(userId);
     }
 
     public Optional<UserSession> findBySesssionId(UUID sessionId) {
-        return repo.findByIdSessionId(sessionId);
+        return repo.findByEmbeddedKeySessionId(sessionId);
     }
 
     public UserSession createSession(User user){

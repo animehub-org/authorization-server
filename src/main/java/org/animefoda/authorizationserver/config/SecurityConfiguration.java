@@ -14,7 +14,7 @@ class SecurityConfiguration {
                 .authorizeHttpRequests(auth -> {
                     auth
                         .requestMatchers("/login").permitAll()
-                        .anyRequest().authenticated();
+                        .anyRequest().permitAll();
                 });
         return http.build();
     }

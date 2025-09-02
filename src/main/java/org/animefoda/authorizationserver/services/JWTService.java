@@ -1,39 +1,28 @@
-package org.animefoda.authorizationserver.security;
+package org.animefoda.authorizationserver.services;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.RSASSASigner;
-import com.nimbusds.jose.jwk.JWK;
-import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.RSAKey;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
-import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import org.animefoda.authorizationserver.entities.role.Role;
 import org.animefoda.authorizationserver.entities.usersession.UserSession;
+import org.animefoda.authorizationserver.security.RsaLoaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 import java.util.Date;
 
 @Service
 public class JWTService {
 
-    @Value("${key.private.path}")
     private String privateKeyPath;
 
-    @Value("${key.public.path}")
     private String publicKeyPath;
 
     private final long refreshTokenExpirationMs = 100L * 60 * 60 * 30;
@@ -80,9 +69,12 @@ public class JWTService {
 
     }
 
-    public JWTService() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException {
+    public JWTService(
+            @Value("${key.private.path}") String privateKeyPath,
+            @Value("${key.public.path}") String publicKeyPath
+    ) throws Exception {
         RsaLoaders loader = new RsaLoaders();
         this.rsaPrivateKey = loader.loadRSAPrivateKey(privateKeyPath);
-        this.rsaPublicKey = loader.loadRSAPublicKey(this.publicKeyPath);
+        this.rsaPublicKey = loader.loadRSAPublicKey(publicKeyPath);
     }
 }

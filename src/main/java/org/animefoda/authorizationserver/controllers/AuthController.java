@@ -10,9 +10,11 @@ import org.animefoda.authorizationserver.exception.BadCredentialsException;
 import org.animefoda.authorizationserver.request.LoginRequest;
 import org.animefoda.authorizationserver.response.ApiResponse;
 import org.animefoda.authorizationserver.response.TokenResponse;
+import org.animefoda.authorizationserver.services.ReCaptchaService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.UUID;
 
 @RestController
@@ -22,23 +24,30 @@ class AuthController {
     private final UserSessionService userSessionService;
     private final UserService userService;
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final ReCaptchaService reCaptchaService;
 
     public AuthController(
             UserSessionService userSessionService,
             UserService userService,
-            BCryptPasswordEncoder bCryptPasswordEncoder
+            BCryptPasswordEncoder bCryptPasswordEncoder,
+            ReCaptchaService reCaptchaService
         ) {
         this.userSessionService = userSessionService;
         this.userService = userService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.reCaptchaService = reCaptchaService;
     }
     @PostMapping("login")
     public ApiResponse<TokenResponse> login(
         @RequestBody LoginRequest body,
         @RequestHeader("User-Agent") String userAgent
-    ){
+    ) throws IOException {
+        reCaptchaService.processResponse(body.recaptchaValue());
+
         User user = userService.findByEmail(body.email()).orElseThrow(BadCredentialsException::new);
         if(!user.isLoginCorrect(body.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
+
+
 
         UserSession session = userSessionService.createSession(user);
         session.setTimeZone(body.fingerprint().timeZone());

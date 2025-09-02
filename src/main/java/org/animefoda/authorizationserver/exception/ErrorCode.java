@@ -7,4 +7,5 @@ public enum ErrorCode {
     FORBIDDEN,
     INTERNAL_SERVER_ERROR,
     VALIDATION_ERROR,
+    INVALID_CAPTCHA
 }

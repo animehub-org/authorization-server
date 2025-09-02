@@ -38,6 +38,7 @@ public class User {
     @Column(nullable = false)
     private boolean superuser;
 
+    @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "user_roles",
         schema = "users",

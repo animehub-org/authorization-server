@@ -21,7 +21,7 @@ public class RsaLoaders {
         String keyString = new String(keyBytes)
                 .replace("-----BEGIN PRIVATE KEY-----", "")
                 .replace("-----END PRIVATE KEY-----", "")
-                .replace(Pattern.compile("\\s").toString(), "");
+                .replaceAll("\\s", "");
         byte[] decodedKey = Base64.getDecoder().decode(keyString);
         EncodedKeySpec keySpec = new PKCS8EncodedKeySpec(decodedKey);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
@@ -34,7 +34,7 @@ public class RsaLoaders {
         String keyString = new String(keyBytes)
                 .replace("-----BEGIN PUBLIC KEY-----", "")
                 .replace("-----END PUBLIC KEY-----", "")
-                .replace(Pattern.compile("\\s").toString(), "");
+                .replaceAll("\\s", "");
         byte[] decodedKey = Base64.getDecoder().decode(keyString);
         EncodedKeySpec keySpec = new X509EncodedKeySpec(decodedKey);
         KeyFactory keyFactory = KeyFactory.getInstance("RSA");
