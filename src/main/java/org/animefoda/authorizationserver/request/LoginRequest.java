@@ -4,7 +4,15 @@ public record LoginRequest(
     String email,
     String username,
     String password,
-    UserFingerprint fingerprint,
-    String recaptchaValue
+    String fingerprint
 ) {
+    @Override
+    public String toString() {
+        return "LoginRequest{" +
+                "email='" + email + '\'' +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                ", fingerprint=" + fingerprint +
+                '}';
+    }
 }

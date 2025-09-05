@@ -9,12 +9,27 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 
 @ControllerAdvice
 class GlobalExceptionHandler {
+
+    @ExceptionHandler(BaseError.class)
+    public ResponseEntity<ApiResponse> handleBaseError(BaseError baseError) {
+        ApiResponse<Object> response = ApiResponse.error(baseError.getMessage(), baseError.getErrorCode());
+        baseError.printStackTrace();
+        return new ResponseEntity<>(response, baseError.errorCode.getHttpStatus());
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse> handleBadCredentialsException(BadCredentialsException badCredentialsException) {
+        ApiResponse<Object> response = ApiResponse.error(badCredentialsException.getMessage(), badCredentialsException.getErrorCode());
+        return new  ResponseEntity<>(response, badCredentialsException.errorCode.getHttpStatus());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleException(Exception ex) {
         ApiResponse<Object> response = ApiResponse.error(
                 ex.getMessage(),
                 ErrorCode.INTERNAL_SERVER_ERROR
         );
+        ex.printStackTrace();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
@@ -28,10 +43,10 @@ class GlobalExceptionHandler {
         return new ResponseEntity<>(ApiResponse.error(message, ErrorCode.VALIDATION_ERROR), HttpStatus.BAD_REQUEST);
     }
 
-    @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<ApiResponse<Object>> handleBadRequest(BadRequestException ex) {
-        ApiResponse<Object> response = ApiResponse.error(ex.getMessage() + ex.getErrorCode(), ex.getErrorCode());
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-    }
+//    @ExceptionHandler(BadRequestException.class)
+//    public ResponseEntity<ApiResponse<Object>> handleBadRequest(BadRequestException ex) {
+//        ApiResponse<Object> response = ApiResponse.error(ex.getMessage()+ " " + ex.getUserError(), ex.getErrorCode());
+//        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+//    }
 
 }

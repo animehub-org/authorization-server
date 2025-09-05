@@ -29,12 +29,15 @@ public class UserSession {
     @Column(name = "user_agent")
     private String userAgent;
 
-    @Column(name = "web_gl_vendor")
-    private String webGlVendor;
+    @Column(name = "fingerprint")
+    private String fingerprint;
 
-    @Column(name = "web_gl_renderer")
-    private String webGlRenderer;
-
-    @Column(name = "time_zone")
-    private String timeZone;
+//    @Column(name = "web_gl_vendor")
+//    private String webGlVendor;
+//
+//    @Column(name = "web_gl_renderer")
+//    private String webGlRenderer;
+//
+//    @Column(name = "time_zone")
+//    private String timeZone;
 }
