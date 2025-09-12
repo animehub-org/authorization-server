@@ -1,6 +1,6 @@
 package org.animefoda.authorizationserver.config;
 
-import org.apache.catalina.filters.CorsFilter;
+import org.springframework.web.filter.CorsFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
@@ -13,7 +13,7 @@ import java.util.Collections;
 @Configuration
 class CorsConfigurationBean {
     @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
+    public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(Collections.singletonList("http://localhost:*"));
 
@@ -29,6 +29,6 @@ class CorsConfigurationBean {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
 
-        return source;
+        return new CorsFilter(source);
     }
 }

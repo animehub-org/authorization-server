@@ -1,7 +1,9 @@
 package org.animefoda.authorizationserver.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+@Getter
 public enum ErrorCode {
     NOT_FOUND(HttpStatus.NOT_FOUND),
     BAD_REQUEST(HttpStatus.BAD_REQUEST),
@@ -18,7 +20,4 @@ public enum ErrorCode {
         this.httpStatus = httpStatus;
     }
 
-    public HttpStatus getHttpStatus() {
-        return this.httpStatus;
-    }
 }

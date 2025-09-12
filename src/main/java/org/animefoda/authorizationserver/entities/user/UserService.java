@@ -16,4 +16,8 @@ public class UserService {
     public Optional<User> findByEmail(String email) {
         return repo.findByEmail(email);
     }
+
+    public Optional<User> findByUsername(String username) {
+        return this.repo.findByUsername(username);
+    }
 }

@@ -1,18 +1,16 @@
 package org.animefoda.authorizationserver.request;
 
 public record LoginRequest(
-    String email,
-    String username,
+    String loginValue,
     String password,
     String fingerprint
 ) {
     @Override
     public String toString() {
         return "LoginRequest{" +
-                "email='" + email + '\'' +
-                ", username='" + username + '\'' +
+                "loginValue='" + loginValue + '\'' +
                 ", password='" + password + '\'' +
-                ", fingerprint=" + fingerprint +
+                ", fingerprint='" + fingerprint + '\'' +
                 '}';
     }
 }

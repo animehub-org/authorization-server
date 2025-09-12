@@ -14,6 +14,7 @@ import org.animefoda.authorizationserver.response.GoogleResponse;
 import org.animefoda.authorizationserver.response.TokenResponse;
 import org.animefoda.authorizationserver.services.KeysService;
 import org.animefoda.authorizationserver.services.ReCaptchaService;
+import org.animefoda.authorizationserver.services.ValidationService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,36 +27,47 @@ class AuthController {
     private final BCryptPasswordEncoder bCryptPasswordEncoder;
     private final ReCaptchaService reCaptchaService;
     private final KeysService keysService;
+    private final ValidationService validationService;
 
     public AuthController(
             UserSessionService userSessionService,
             UserService userService,
             BCryptPasswordEncoder bCryptPasswordEncoder,
             ReCaptchaService reCaptchaService,
-            KeysService keysService
+            KeysService keysService,
+            ValidationService validationService
         ) {
         this.userSessionService = userSessionService;
         this.userService = userService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.reCaptchaService = reCaptchaService;
         this.keysService = keysService;
+        this.validationService = validationService;
     }
+
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(
         @RequestBody LoginEncrypted body,
         @RequestHeader("User-Agent") String userAgent
     ) throws Exception {
-        if(body.encryptedInfo() == null) throw new BadRequestException("Request error", "Encrypted info is null");
-        if(body.recaptchaToken() == null) throw new BadRequestException("Request error", "Recaptcha token is null");
+        if (body.encryptedInfo() == null) throw new BadRequestException("Request error", "Encrypted info is null");
+        if (body.recaptchaToken() == null) throw new BadRequestException("Request error", "Recaptcha token is null");
         LoginRequest request = keysService.decryptAndDeserialize(body.encryptedInfo(), LoginRequest.class);
         GoogleResponse googleResponse = reCaptchaService.processResponse(body.recaptchaToken());
-        if(!googleResponse.success()){
+        if (!googleResponse.success()) {
             throw new ReCaptchaException();
         }
+        User user;
 
-        User user = userService.findByEmail(request.email()).orElseThrow(BadCredentialsException::new);
-        if(!user.isLoginCorrect(request.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
+        if(this.validationService.validateEmail(request.loginValue())){
+            user = userService.findByEmail(request.loginValue()).orElseThrow(BadCredentialsException::new);
+        }else if(this.validationService.validateUsername(request.loginValue())){
+            user = userService.findByUsername(request.loginValue()).orElseThrow(BadCredentialsException::new);
+        }else{
+            throw new BadCredentialsException();
+        }
 
+        if (!user.isLoginCorrect(request.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
 
         UserSession session = userSessionService.createSession(user);
         session.setUserAgent(userAgent);
@@ -63,6 +75,6 @@ class AuthController {
 
         userSessionService.save(session);
 
-        return new ApiResponse<>(new TokenResponse("",""));
+        return new ApiResponse<>(new TokenResponse("", "", 0L));
     }
 }
