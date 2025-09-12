@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package auth;
+
+option java_package = "org.animefoda.grpc.auth";
+option java_multiple_files = true;
+
+service AuthService {
+  rpc Authenticate (AuthenticationRequest) returns (AuthenticationResponse);
+}
+
+message AuthenticationRequest {
+  string encrypted_payload = 1;
+}
+
+message AuthenticationResponse {
+  bool success = 1;
+  string message = 2;
+}
