@@ -1,20 +1,16 @@
 package org.animefoda.authorizationserver.controllers;
 
-import org.animefoda.authorizationserver.entities.user.User;
-import org.animefoda.authorizationserver.entities.user.UserService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import org.animefoda.authorizationserver.entities.user.*;
 import org.animefoda.authorizationserver.entities.usersession.UserSession;
 import org.animefoda.authorizationserver.entities.usersession.UserSessionService;
 import org.animefoda.authorizationserver.exception.BadCredentialsException;
 import org.animefoda.authorizationserver.exception.BadRequestException;
 import org.animefoda.authorizationserver.exception.ReCaptchaException;
-import org.animefoda.authorizationserver.request.LoginEncrypted;
-import org.animefoda.authorizationserver.request.LoginRequest;
-import org.animefoda.authorizationserver.response.ApiResponse;
-import org.animefoda.authorizationserver.response.GoogleResponse;
-import org.animefoda.authorizationserver.response.TokenResponse;
-import org.animefoda.authorizationserver.services.KeysService;
-import org.animefoda.authorizationserver.services.ReCaptchaService;
-import org.animefoda.authorizationserver.services.ValidationService;
+import org.animefoda.authorizationserver.request.*;
+import org.animefoda.authorizationserver.response.*;
+import org.animefoda.authorizationserver.services.*;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,27 +24,30 @@ class AuthController {
     private final ReCaptchaService reCaptchaService;
     private final KeysService keysService;
     private final ValidationService validationService;
+    private final JWTService jwtService;
 
-    public AuthController(
+    AuthController(
             UserSessionService userSessionService,
             UserService userService,
             BCryptPasswordEncoder bCryptPasswordEncoder,
             ReCaptchaService reCaptchaService,
             KeysService keysService,
-            ValidationService validationService
-        ) {
+            ValidationService validationService,
+            JWTService jwtService) {
         this.userSessionService = userSessionService;
         this.userService = userService;
         this.bCryptPasswordEncoder = bCryptPasswordEncoder;
         this.reCaptchaService = reCaptchaService;
         this.keysService = keysService;
         this.validationService = validationService;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(
         @RequestBody LoginEncrypted body,
-        @RequestHeader("User-Agent") String userAgent
+        @RequestHeader("User-Agent") String userAgent,
+        HttpServletResponse response
     ) throws Exception {
         if (body.encryptedInfo() == null) throw new BadRequestException("Request error", "Encrypted info is null");
         if (body.recaptchaToken() == null) throw new BadRequestException("Request error", "Recaptcha token is null");
@@ -75,6 +74,21 @@ class AuthController {
 
         userSessionService.save(session);
 
-        return new ApiResponse<>(new TokenResponse("", "", 0L));
+        String accessToken = jwtService.generateAccessToken(session);
+        String refreshToken = jwtService.generateRefreshToken(session);
+
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge((int) (jwtService.getRefreshExpirationTimeMs() / 1000));
+        String cookieHeader = String.format("%s; SameSite=Lax", cookie.getValue());
+        response.addHeader("Set-Cookie", cookieHeader);
+        return ApiResponse.setSuccess(new TokenResponse(accessToken, refreshToken, jwtService.getAccessExpirationTimeMs()));
+    }
+
+    @PostMapping("/register")
+    public ApiResponse<UserDTO> register(){
+        return ApiResponse.setSuccess(null);
     }
 }
