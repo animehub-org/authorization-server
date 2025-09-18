@@ -2,12 +2,11 @@ package org.animefoda.authorizationserver.controllers;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import org.animefoda.authorizationserver.annotation.DecryptedBody;
 import org.animefoda.authorizationserver.entities.user.*;
 import org.animefoda.authorizationserver.entities.usersession.UserSession;
 import org.animefoda.authorizationserver.entities.usersession.UserSessionService;
 import org.animefoda.authorizationserver.exception.BadCredentialsException;
-import org.animefoda.authorizationserver.exception.BadRequestException;
-import org.animefoda.authorizationserver.exception.ReCaptchaException;
 import org.animefoda.authorizationserver.request.*;
 import org.animefoda.authorizationserver.response.*;
 import org.animefoda.authorizationserver.services.*;
@@ -45,17 +44,11 @@ class AuthController {
 
     @PostMapping("/login")
     public ApiResponse<TokenResponse> login(
-        @RequestBody LoginEncrypted body,
+        @DecryptedBody @RequestBody LoginRequest request,
         @RequestHeader("User-Agent") String userAgent,
         HttpServletResponse response
     ) throws Exception {
-        if (body.encryptedInfo() == null) throw new BadRequestException("Request error", "Encrypted info is null");
-        if (body.recaptchaToken() == null) throw new BadRequestException("Request error", "Recaptcha token is null");
-        LoginRequest request = keysService.decryptAndDeserialize(body.encryptedInfo(), LoginRequest.class);
-        GoogleResponse googleResponse = reCaptchaService.processResponse(body.recaptchaToken());
-        if (!googleResponse.success()) {
-            throw new ReCaptchaException();
-        }
+        System.out.println(request.toString());
         User user;
 
         if(this.validationService.validateEmail(request.loginValue())){
@@ -88,7 +81,10 @@ class AuthController {
     }
 
     @PostMapping("/register")
-    public ApiResponse<UserDTO> register(){
+    public ApiResponse<UserDTO> register(
+        @RequestBody LoginEncrypted body
+    ){
+
         return ApiResponse.setSuccess(null);
     }
 }

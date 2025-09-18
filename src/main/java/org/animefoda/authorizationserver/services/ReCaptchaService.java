@@ -37,7 +37,7 @@ public class ReCaptchaService {
 
     private static final Pattern RESPONSE_PATTERN = Pattern.compile("[A-Za-z0-9-_]+");
 
-    public GoogleResponse processResponse(String response) throws IOException {
+    public GoogleResponse processResponse(String response) throws IOException, InvalidReCaptchaException {
         if (response == null) {
             throw new InvalidReCaptchaException("reCAPTCHA response is null.");
         }
