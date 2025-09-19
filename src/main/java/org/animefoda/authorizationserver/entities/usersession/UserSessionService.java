@@ -15,8 +15,8 @@ public class UserSessionService {
         this.repo = repo;
     }
 
-    public void save(UserSession userSession){
-        this.repo.save(userSession);
+    public UserSession save(UserSession userSession){
+        return this.repo.save(userSession);
     }
 
     public void delete(UserSession userSession){

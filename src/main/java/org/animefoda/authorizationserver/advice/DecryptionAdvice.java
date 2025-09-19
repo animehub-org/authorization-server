@@ -43,18 +43,15 @@ public class DecryptionAdvice implements RequestBodyAdvice {
         try {
             LoginEncrypted encryptedBody = objectMapper.readValue(inputMessage.getBody(), LoginEncrypted.class);
 
-            // Step 1: Validate reCAPTCHA token (plaintext data)
             if (encryptedBody.recaptchaToken() == null) {
                 throw new BadRequestException("Recaptcha token is missing", "RECAPTCHA_TOKEN_MISSING");
             }
             reCaptchaService.processResponse(encryptedBody.recaptchaToken());
 
-            // Step 2: Decrypt the sensitive payload
             Object decryptedPayload = keysService.decryptAndDeserialize(
                     encryptedBody.encryptedInfo(), (Class<?>) targetType
             );
 
-            // Step 3: Return a new message with the decrypted payload
             String decryptedJson = objectMapper.writeValueAsString(decryptedPayload);
             return new DecryptedInputMessage(decryptedJson, inputMessage.getHeaders());
 

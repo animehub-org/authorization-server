@@ -77,10 +77,7 @@ public class ReCaptchaService {
             content.append(inputLine);
         }
         in.close();
-//        System.out.println(content);
-        GoogleResponse googleResponse = this.objectMapper.readValue(content.toString(), GoogleResponse.class);
-        System.out.println(googleResponse);
-        return googleResponse;
+        return this.objectMapper.readValue(content.toString(), GoogleResponse.class);
     }
 
     private boolean responseSanityCheck(String response){

@@ -12,7 +12,8 @@ public enum ErrorCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR),
     VALIDATION_ERROR(HttpStatus.BAD_REQUEST),
     INVALID_CAPTCHA(HttpStatus.UNPROCESSABLE_ENTITY),
-    INVALID_TOKEN(HttpStatus.UNAUTHORIZED);
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED),
+    EXISTS(HttpStatus.CONFLICT);
 
     private final HttpStatus httpStatus;
 

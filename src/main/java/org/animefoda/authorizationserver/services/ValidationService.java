@@ -14,7 +14,8 @@ public class ValidationService {
     }
 
     public boolean validateUsername(String username){
-        Pattern regexPattern = Pattern.compile("");
+        String regex = "^[a-zA-Z0-9._]{5,20}$";
+        Pattern regexPattern = Pattern.compile(regex);
         return regexPattern.matcher(username).matches();
     }
 }

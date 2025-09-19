@@ -10,7 +10,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Table
+@Table(name = "user_session", schema = "users")
 @Entity
 @Getter
 @Setter

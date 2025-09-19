@@ -13,7 +13,7 @@ class GlobalExceptionHandler {
     @ExceptionHandler(BaseError.class)
     public ResponseEntity<ApiResponse> handleBaseError(BaseError baseError) {
         ApiResponse<Object> response = ApiResponse.error(baseError.getMessage(), baseError.getErrorCode());
-        baseError.printStackTrace();
+//        baseError.printStackTrace();
         return new ResponseEntity<>(response, baseError.errorCode.getHttpStatus());
     }
 
@@ -29,7 +29,7 @@ class GlobalExceptionHandler {
                 ex.getMessage(),
                 ErrorCode.INTERNAL_SERVER_ERROR
         );
-        ex.printStackTrace();
+//        ex.printStackTrace();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 

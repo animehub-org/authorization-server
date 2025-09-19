@@ -4,7 +4,7 @@ import org.animefoda.authorizationserver.entities.role.RoleDTO;
 
 import java.io.Serializable;
 import java.util.Date;
-import java.util.Set;
+import java.util.List;
 import java.util.UUID;
 
 public record UserDTO(
@@ -15,6 +15,6 @@ public record UserDTO(
     Date birthDate,
     String email,
     boolean superUser,
-    Set<RoleDTO> roles
+    List<RoleDTO> roles
 )implements Serializable {
 }
