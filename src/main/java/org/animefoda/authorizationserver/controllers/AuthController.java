@@ -61,36 +61,69 @@ class AuthController {
         HttpServletResponse response
     ) throws Exception {
         System.out.println(request.toString());
-        User user;
-
-        if(this.validationService.validateEmail(request.loginValue())){
-            user = userService.findByEmail(request.loginValue()).orElseThrow(BadCredentialsException::new);
-        }else if(this.validationService.validateUsername(request.loginValue())){
-            user = userService.findByUsername(request.loginValue()).orElseThrow(BadCredentialsException::new);
-        }else{
-            throw new BadCredentialsException();
-        }
-
+        User user = this.checkLoginValue(request.loginValue());
         if (!user.isLoginCorrect(request.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
 
-        UserSession session = userSessionService.createSession(user);
-        session.setUserAgent(userAgent);
-        session.setFingerprint(request.fingerprint());
+        UserSession session = this.createAndSaveSession(user, userAgent, request.fingerprint());
 
-        UserSession savedSession = userSessionService.save(session);
+        String accessToken = jwtService.generateAccessToken(session);
+        String refreshToken = jwtService.generateRefreshToken(session);
 
-        String accessToken = jwtService.generateAccessToken(savedSession);
-        String refreshToken = jwtService.generateRefreshToken(savedSession);
+        Cookie cookie = this.createCookie(accessToken);
 
-        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        response.addCookie(cookie);
+        return ApiResponse.setSuccess(new TokenResponse(accessToken, refreshToken, jwtService.getAccessExpirationTimeMs(), user.toUserDTO()));
+    }
+
+    private Cookie createCookie(String accessToken){
+        Cookie cookie = new Cookie("accessToken", accessToken);
         cookie.setHttpOnly(true);
         cookie.setSecure(false);
         cookie.setPath("/");
-        cookie.setMaxAge((int) (jwtService.getRefreshExpirationTimeMs() / 1000));
-//        cookie.setAttribute("SameSite", "Lax");
-        response.addCookie(cookie);
-        return ApiResponse.setSuccess(new TokenResponse(accessToken, refreshToken, jwtService.getAccessExpirationTimeMs()));
+        cookie.setMaxAge((int) (jwtService.getAccessExpirationTimeMs() / 1000));
+        return cookie;
     }
+
+    private UserSession createAndSaveSession(User user, String userAgent, String fingerprint){
+        UserSession session = userSessionService.createSession(user);
+        session.setUserAgent(userAgent);
+        session.setFingerprint(fingerprint);
+
+        return session;
+//        return userSessionService.save(session);
+    }
+
+    private User checkLoginValue(String loginValue) throws BadCredentialsException {
+        User user;
+        if(this.validationService.validateEmail(loginValue)){
+            user = userService.findByEmail(loginValue).orElseThrow(BadCredentialsException::new);
+        }else if(this.validationService.validateUsername(loginValue)){
+            user = userService.findByUsername(loginValue).orElseThrow(BadCredentialsException::new);
+        }else{
+            throw new BadCredentialsException();
+        }
+        return user;
+    }
+
+//    @PostMapping("/admin/login")
+//    public ApiResponse<TokenResponse> adminLogin(
+//        @DecryptedBody @RequestBody LoginRequest body,
+//        @RequestHeader("User-Agent") String userAgent,
+//        HttpServletResponse response
+//    ){
+//        User user = this.checkLoginValue(body.loginValue());
+//        if (!user.isLoginCorrect(body.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
+//
+//        UserSession session = this.createAndSaveSession(user, userAgent, body.fingerprint());
+//
+//        String accessToken = jwtService.generateAccessToken(session);
+//        String refreshToken = jwtService.generateRefreshToken(session);
+//
+//        Cookie cookie = this.createCookie(accessToken);
+//
+//        response.addCookie(cookie);
+//        return ApiResponse.setSuccess(new TokenResponse(accessToken, refreshToken, jwtService.getAccessExpirationTimeMs()));
+//    }
 
     @PostMapping("/register")
     @Transactional
