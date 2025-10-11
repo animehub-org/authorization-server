@@ -1,12 +1,10 @@
 package org.animefoda.authorizationserver.controllers;
 
-import org.animefoda.authorizationserver.response.ApiResponse;
 import org.animefoda.authorizationserver.services.KeysService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RequestMapping;
-
-import java.security.PublicKey;
+import response.ApiResponse;
 
 @RestController
 @RequestMapping("/g/keys")

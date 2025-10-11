@@ -1,9 +1,9 @@
 package org.animefoda.authorizationserver.advice;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.animefoda.authorizationserver.exception.BadRequestException;
+import exception.BadRequestException;
+import exception.ReCaptchaException;
 import org.animefoda.authorizationserver.annotation.DecryptedBody;
-import org.animefoda.authorizationserver.exception.ReCaptchaException;
 import org.animefoda.authorizationserver.request.LoginEncrypted;
 import org.animefoda.authorizationserver.services.KeysService;
 import org.animefoda.authorizationserver.services.ReCaptchaService;

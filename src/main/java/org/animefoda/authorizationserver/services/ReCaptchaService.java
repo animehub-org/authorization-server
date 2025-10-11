@@ -1,14 +1,13 @@
 package org.animefoda.authorizationserver.services;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import exception.InvalidReCaptchaException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.animefoda.authorizationserver.config.ReCaptchaConfiguration;
-import org.animefoda.authorizationserver.exception.InvalidReCaptchaException;
 import org.animefoda.authorizationserver.response.GoogleResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 

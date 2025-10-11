@@ -1,28 +1,29 @@
 package org.animefoda.authorizationserver.services;
 
-import com.nimbusds.jose.JWSAlgorithm;
-import com.nimbusds.jose.JWSHeader;
-import com.nimbusds.jose.crypto.RSASSASigner;
-import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.SignedJWT;
+import entities.accessSession.AccessSession;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
 import lombok.Getter;
-import org.animefoda.authorizationserver.entities.role.Role;
-import org.animefoda.authorizationserver.entities.role.RoleName;
-import org.animefoda.authorizationserver.entities.usersession.UserSession;
+import entities.usersession.UserSession;
 import org.animefoda.authorizationserver.security.RsaLoaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import services.UserSessionService;
+import services.AccessService;
 
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.time.Instant;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 
 @Service
 public class JWTService {
+
+    private final UserSessionService userSessionService;
+
+    private final AccessService accessService;
 
     @Getter
     private final long accessExpirationTimeMs;
@@ -38,58 +39,75 @@ public class JWTService {
         return new BCryptPasswordEncoder();
     }
 
-    public String generateAccessToken(UserSession session) {
-        Instant now = Instant.now();
-        List<RoleName> roles = session.getUser().getRoles().stream().map(Role::getName).toList();
-
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .issuer("self")
-                .subject(session.getEmbeddedKey().getUserId().toString())
-                .claim("sessionId", session.getEmbeddedKey().getSessionId())
-                .claim("roles", roles)
-                .issueTime(Date.from(now))
-                .expirationTime(Date.from(now.plusMillis(this.accessExpirationTimeMs)))
-                .build();
-
-        return signAndSerialize(claims);
+    private String generateToken(Map<String, Object> claims, UserSession userSession, long expiration) {
+        return Jwts.builder()
+                .claims(claims)
+                .subject(userSession.getUser().getId().toString())
+                .issuedAt(new Date(System.currentTimeMillis()))
+                .expiration(new Date(System.currentTimeMillis() + expiration))
+                .signWith(rsaPrivateKey)
+                .compact();
     }
 
-    public String generateRefreshToken(UserSession session) {
-        Instant now = Instant.now();
-
-        JWTClaimsSet claims = new JWTClaimsSet.Builder()
-                .issuer("self")
-                .subject(session.getEmbeddedKey().getUserId().toString())
-                .claim("sessionId", session.getEmbeddedKey().getSessionId())
-                .claim("tokenType", "refresh") // Differentiates this token from the access token
-                .issueTime(Date.from(now))
-                .expirationTime(Date.from(now.plusMillis(this.refreshExpirationTimeMs)))
-                .build();
-
-        return signAndSerialize(claims);
+    public String generateAccessToken(UserSession session){
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("accessToken", UUID.randomUUID());
+        return this.generateToken(claims, session, this.accessExpirationTimeMs);
     }
 
-    // A private helper method to sign and serialize the JWT
-    private String signAndSerialize(JWTClaimsSet claims) {
-        SignedJWT signedJWT = new SignedJWT(
-                new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(this.rsaPublicKey.getAlgorithm()).build(),
-                claims
-        );
+    public String generateRefreshToken(UserSession session){
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("refreshToken", session.getEmbeddedKey().getSessionId());
+        return this.generateToken(claims, session, this.refreshExpirationTimeMs);
+    }
 
-        try {
-            signedJWT.sign(new RSASSASigner(this.rsaPrivateKey));
-            return signedJWT.serialize();
-        } catch (Exception e) {
-            throw new RuntimeException("Error signing JWT", e);
-        }
+    public boolean isAccessTokenValid(String accessToken){
+        UUID accessId = this.extractAccessId(accessToken);
+        Optional<AccessSession> session = this.accessService.findByAccessId(accessId);
+        return session.isPresent() && session.get().isActive();
+    }
+
+    public boolean isRefreshTokenValid(String refreshToken) {
+        UUID refreshId = this.extractRefreshId(refreshToken);
+        Optional<UserSession> session = this.userSessionService.findBySesssionId(refreshId);
+        return session.isPresent() && session.get().isActive();
+    }
+
+    private UUID extractAccessId(String accessToken){
+        return extractClaim(accessToken, claims -> claims.get("accessId", UUID.class));
+    }
+
+    private UUID extractRefreshId(String refreshToken){
+        return extractClaim(refreshToken, claims -> claims.get("refreshId", UUID.class));
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
+    }
+
+    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaims(token);
+        return claimsResolver.apply(claims);
+    }
+
+    private Claims extractAllClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(this.rsaPublicKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     public JWTService(
         @Value("${jwt.access.expiration}") long accessExpirationTimeMs,
         @Value("${jwt.refresh.expiration}") long refreshExpirationTimeMs,
         @Value("${key.private.path}") String privateKeyPath,
-        @Value("${key.public.path}") String publicKeyPath
+        @Value("${key.public.path}") String publicKeyPath,
+        UserSessionService userSessionService,
+        AccessService accessService
     ) throws Exception {
+        this.userSessionService = userSessionService;
+        this.accessService = accessService;
         this.accessExpirationTimeMs = accessExpirationTimeMs;
         this.refreshExpirationTimeMs = refreshExpirationTimeMs;
 

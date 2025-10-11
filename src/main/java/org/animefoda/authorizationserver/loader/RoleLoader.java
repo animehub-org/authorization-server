@@ -1,8 +1,8 @@
 package org.animefoda.authorizationserver.loader;
 
-import org.animefoda.authorizationserver.entities.role.Role;
-import org.animefoda.authorizationserver.entities.role.RoleName;
-import org.animefoda.authorizationserver.entities.role.RoleService;
+import entities.role.Role;
+import entities.role.RoleName;
+import services.RoleService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 

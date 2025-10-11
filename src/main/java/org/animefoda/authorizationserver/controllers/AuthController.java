@@ -1,26 +1,30 @@
 package org.animefoda.authorizationserver.controllers;
 
+import exception.BadCredentialsException;
+import exception.BaseError;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import org.animefoda.authorizationserver.annotation.DecryptedBody;
-import org.animefoda.authorizationserver.entities.role.Role;
-import org.animefoda.authorizationserver.entities.role.RoleName;
-import org.animefoda.authorizationserver.entities.role.RoleService;
-import org.animefoda.authorizationserver.entities.user.*;
-import org.animefoda.authorizationserver.entities.usersession.UserSession;
-import org.animefoda.authorizationserver.entities.usersession.UserSessionService;
-import org.animefoda.authorizationserver.exception.BadCredentialsException;
-import org.animefoda.authorizationserver.exception.BaseError;
+import entities.role.Role;
+import entities.role.RoleName;
+import services.RoleService;
+import entities.user.*;
+import entities.usersession.UserSession;
+import services.UserService;
+import services.UserSessionService;
 import org.animefoda.authorizationserver.request.*;
 import org.animefoda.authorizationserver.response.*;
 import org.animefoda.authorizationserver.services.*;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import response.ApiResponse;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @RestController
 //@RequestMapping("/")
@@ -60,7 +64,7 @@ class AuthController {
         @RequestHeader("User-Agent") String userAgent,
         HttpServletResponse response
     ) throws Exception {
-        System.out.println(request.toString());
+//        System.out.println(request.toString());
         User user = this.checkLoginValue(request.loginValue());
         if (!user.isLoginCorrect(request.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
 
@@ -105,25 +109,12 @@ class AuthController {
         return user;
     }
 
-//    @PostMapping("/admin/login")
-//    public ApiResponse<TokenResponse> adminLogin(
-//        @DecryptedBody @RequestBody LoginRequest body,
-//        @RequestHeader("User-Agent") String userAgent,
-//        HttpServletResponse response
-//    ){
-//        User user = this.checkLoginValue(body.loginValue());
-//        if (!user.isLoginCorrect(body.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
-//
-//        UserSession session = this.createAndSaveSession(user, userAgent, body.fingerprint());
-//
-//        String accessToken = jwtService.generateAccessToken(session);
-//        String refreshToken = jwtService.generateRefreshToken(session);
-//
-//        Cookie cookie = this.createCookie(accessToken);
-//
-//        response.addCookie(cookie);
-//        return ApiResponse.setSuccess(new TokenResponse(accessToken, refreshToken, jwtService.getAccessExpirationTimeMs()));
-//    }
+    @GetMapping("/validate")
+    public ApiResponse<Boolean> validate(){
+        return ApiResponse.setSuccess(true);
+    }
+
+
 
     @PostMapping("/register")
     @Transactional
@@ -133,7 +124,7 @@ class AuthController {
         String salt  = BCrypt.gensalt();
         String password = BCrypt.hashpw(body.password(), salt);
 
-        List<Role> roles = new ArrayList<>();
+        Set<Role> roles = new HashSet<Role>();
         roles.add(roleService.findByName(RoleName.ROLE_USER).orElseThrow());
 
         if(!this.validationService.validateUsername(body.username())){
@@ -143,17 +134,16 @@ class AuthController {
             throw new BadCredentialsException();
         }
 
-        User user  = new User(
-            body.birthDate(),
-            body.name(),
-            body.surname(),
-            body.username(),
-            body.email(),
-            password,
-            salt,
-            false,
-            roles
-        );
+        User user = User.builder()
+                .name(body.name())
+                .surname(body.surname())
+                .username(body.username())
+                .email(body.email())
+                .password(password)
+                .salt(salt)
+                .superUser(false)
+                .roles(roles)
+                .build();
 
         User savedUser = this.userService.save(user);
 

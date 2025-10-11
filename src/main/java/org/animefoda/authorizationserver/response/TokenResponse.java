@@ -1,6 +1,6 @@
 package org.animefoda.authorizationserver.response;
 
-import org.animefoda.authorizationserver.entities.user.UserDTO;
+import entities.user.UserDTO;
 
 import java.io.Serializable;
 
