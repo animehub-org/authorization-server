@@ -33,7 +33,7 @@ class GlobalExceptionHandler {
                 ex.getMessage(),
                 ErrorCode.INTERNAL_SERVER_ERROR
         );
-//        ex.printStackTrace();
+        ex.printStackTrace();
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 

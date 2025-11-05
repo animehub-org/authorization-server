@@ -15,7 +15,7 @@ public class KeysController {
         this.service = service;
     }
 
-    @GetMapping("public")
+    @GetMapping("/public")
     public ApiResponse<String> getPublicKey() {
         return ApiResponse.setSuccess(service.getPublicAsBase64());
     }

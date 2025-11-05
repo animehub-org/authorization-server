@@ -9,6 +9,9 @@ import org.animefoda.authorizationserver.security.RsaLoaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.stereotype.Service;
 import services.UserSessionService;
 import services.AccessService;
@@ -20,9 +23,7 @@ import java.util.function.Function;
 
 @Service
 public class JWTService {
-
     private final UserSessionService userSessionService;
-
     private final AccessService accessService;
 
     @Getter
@@ -31,13 +32,7 @@ public class JWTService {
     private final long refreshExpirationTimeMs;
 
     private final RSAPrivateKey rsaPrivateKey;
-
     private final RSAPublicKey rsaPublicKey;
-
-    @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
 
     private String generateToken(Map<String, Object> claims, UserSession userSession, long expiration) {
         return Jwts.builder()
@@ -45,7 +40,7 @@ public class JWTService {
                 .subject(userSession.getUser().getId().toString())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(rsaPrivateKey)
+                .signWith(rsaPrivateKey) // Continua usando a chave privada
                 .compact();
     }
 
@@ -73,15 +68,19 @@ public class JWTService {
         return session.isPresent() && session.get().isActive();
     }
 
-    private UUID extractAccessId(String accessToken){
+    public UUID extractSubject(String accessToken){
+        return UUID.fromString(extractAllClaims(accessToken).getSubject());
+    }
+
+    public UUID extractAccessId(String accessToken){
         return extractClaim(accessToken, claims -> claims.get("accessId", UUID.class));
     }
 
-    private UUID extractRefreshId(String refreshToken){
+    public UUID extractRefreshId(String refreshToken){
         return extractClaim(refreshToken, claims -> claims.get("refreshId", UUID.class));
     }
 
-    private Date extractExpiration(String token) {
+    public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
@@ -92,27 +91,30 @@ public class JWTService {
 
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
-                .verifyWith(this.rsaPublicKey)
+                .verifyWith(this.rsaPublicKey) // Continua usando a chave pública
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
     public JWTService(
-        @Value("${jwt.access.expiration}") long accessExpirationTimeMs,
-        @Value("${jwt.refresh.expiration}") long refreshExpirationTimeMs,
-        @Value("${key.private.path}") String privateKeyPath,
-        @Value("${key.public.path}") String publicKeyPath,
-        UserSessionService userSessionService,
-        AccessService accessService
-    ) throws Exception {
+            @Value("${jwt.access.expiration}") long accessExpirationTimeMs,
+            @Value("${jwt.refresh.expiration}") long refreshExpirationTimeMs,
+            UserSessionService userSessionService,
+            AccessService accessService,
+            // As chaves agora são injetadas como Beans
+            RSAPrivateKey rsaPrivateKey,
+            RSAPublicKey rsaPublicKey
+    ) {
         this.userSessionService = userSessionService;
         this.accessService = accessService;
         this.accessExpirationTimeMs = accessExpirationTimeMs;
         this.refreshExpirationTimeMs = refreshExpirationTimeMs;
 
-        RsaLoaders loader = new RsaLoaders();
-        this.rsaPrivateKey = loader.loadRSAPrivateKey(privateKeyPath);
-        this.rsaPublicKey = loader.loadRSAPublicKey(publicKeyPath);
+        // Atribui as chaves injetadas
+        this.rsaPrivateKey = rsaPrivateKey;
+        this.rsaPublicKey = rsaPublicKey;
+
+        // A lógica de carregar as chaves (RsaLoaders) foi removida daqui
     }
 }

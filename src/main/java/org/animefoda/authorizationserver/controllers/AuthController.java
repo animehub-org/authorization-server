@@ -1,10 +1,12 @@
 package org.animefoda.authorizationserver.controllers;
 
 import exception.BadCredentialsException;
+import exception.BadRequestException;
 import exception.BaseError;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
+import org.animefoda.authorizationserver.annotation.CurrentUser;
 import org.animefoda.authorizationserver.annotation.DecryptedBody;
 import entities.role.Role;
 import entities.role.RoleName;
@@ -64,7 +66,7 @@ class AuthController {
         @RequestHeader("User-Agent") String userAgent,
         HttpServletResponse response
     ) throws Exception {
-//        System.out.println(request.toString());
+        System.out.println(request.toString());
         User user = this.checkLoginValue(request.loginValue());
         if (!user.isLoginCorrect(request.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
 
@@ -109,12 +111,26 @@ class AuthController {
         return user;
     }
 
-    @GetMapping("/validate")
+    @GetMapping("/g/validate")
     public ApiResponse<Boolean> validate(){
         return ApiResponse.setSuccess(true);
     }
 
+    @GetMapping("/g/validate/ROLE_ADMIN")
+    public ApiResponse<Boolean> validateRoleAdmin(
+            @CurrentUser User user
+    ){
+        return ApiResponse.setSuccess(userService.isAdmin(user));
+    }
 
+    @GetMapping("/g/validate/{role}")
+    public ApiResponse<Boolean> validate(
+            @PathVariable("role") String roleName,
+            @CurrentUser User user
+    ){
+        Role role = roleService.findByName(roleName).orElseThrow(()-> new BadRequestException("Role name does not exists", "ROLE_NAME_NOT_EXISTS"));
+        return ApiResponse.setSuccess(userService.isRole(role, user));
+    }
 
     @PostMapping("/register")
     @Transactional
@@ -143,6 +159,7 @@ class AuthController {
                 .salt(salt)
                 .superUser(false)
                 .roles(roles)
+                .birthDate(body.birthDate())
                 .build();
 
         User savedUser = this.userService.save(user);
