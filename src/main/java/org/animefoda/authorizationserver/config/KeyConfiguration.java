@@ -10,7 +10,10 @@ import org.animefoda.authorizationserver.security.RsaLoaders;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.factory.PasswordEncoderFactories;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -55,8 +58,16 @@ public class KeyConfiguration {
         JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(jwk));
         return new NimbusJwtEncoder(jwkSource);
     }
+//    @Bean
+//    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+//        return new BCryptPasswordEncoder();
+//    }
+
     @Bean
-    public BCryptPasswordEncoder bCryptPasswordEncoder() {
-        return new BCryptPasswordEncoder();
+    @Primary
+    public PasswordEncoder passwordEncoder() {
+        // Usa o DelegatingPasswordEncoder padrão. Ele reconhece {bcrypt}, {noop}, etc.
+        // Isso garante que ele saiba lidar com o prefixo {noop} para o clientSecret.
+        return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 }

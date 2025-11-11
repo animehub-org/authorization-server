@@ -1,6 +1,8 @@
 package org.animefoda.authorizationserver.services;
 
 import entities.accessSession.AccessSession;
+import entities.role.Role;
+import entities.role.RoleName;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import lombok.Getter;
@@ -20,6 +22,7 @@ import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.*;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class JWTService {
@@ -47,6 +50,15 @@ public class JWTService {
     public String generateAccessToken(UserSession session){
         Map<String, Object> claims = new HashMap<>();
         claims.put("accessToken", UUID.randomUUID());
+        List<String> roles = session.getUser().getRoles().stream()
+                .map(Role::getName)
+                .collect(Collectors.toList());
+
+        if(session.getUser().isSuperUser()) roles.add(RoleName.ROLE_SUPERUSER.toString());
+
+        // 2. Adiciona as roles ao payload sob a chave 'roles' (ou 'scope')
+        claims.put("roles", roles);
+//        claims.put("superuser", session.getUser().isSuperUser());
         return this.generateToken(claims, session, this.accessExpirationTimeMs);
     }
 

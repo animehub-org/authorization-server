@@ -10,6 +10,7 @@ import org.animefoda.authorizationserver.annotation.CurrentUser;
 import org.animefoda.authorizationserver.annotation.DecryptedBody;
 import entities.role.Role;
 import entities.role.RoleName;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import services.RoleService;
 import entities.user.*;
 import entities.usersession.UserSession;
@@ -34,7 +35,7 @@ class AuthController {
 
     private final UserSessionService userSessionService;
     private final UserService userService;
-    private final BCryptPasswordEncoder bCryptPasswordEncoder;
+    private final PasswordEncoder passwordEncoder;
     private final ReCaptchaService reCaptchaService;
     private final KeysService keysService;
     private final ValidationService validationService;
@@ -44,14 +45,14 @@ class AuthController {
     AuthController(
             UserSessionService userSessionService,
             UserService userService,
-            BCryptPasswordEncoder bCryptPasswordEncoder,
+            PasswordEncoder passwordEncoder,
             ReCaptchaService reCaptchaService,
             KeysService keysService,
             ValidationService validationService,
             JWTService jwtService, RoleService roleService) {
         this.userSessionService = userSessionService;
         this.userService = userService;
-        this.bCryptPasswordEncoder = bCryptPasswordEncoder;
+        this.passwordEncoder = passwordEncoder;
         this.reCaptchaService = reCaptchaService;
         this.keysService = keysService;
         this.validationService = validationService;
@@ -68,16 +69,19 @@ class AuthController {
     ) throws Exception {
         System.out.println(request.toString());
         User user = this.checkLoginValue(request.loginValue());
-        if (!user.isLoginCorrect(request.password(), bCryptPasswordEncoder)) throw new BadCredentialsException();
+        if (!user.isLoginCorrect(request.password(), passwordEncoder)) throw new BadCredentialsException();
 
         UserSession session = this.createAndSaveSession(user, userAgent, request.fingerprint());
 
         String accessToken = jwtService.generateAccessToken(session);
         String refreshToken = jwtService.generateRefreshToken(session);
 
-        Cookie cookie = this.createCookie(accessToken);
-
-        response.addCookie(cookie);
+//        Cookie cookie = this.createCookie(accessToken);
+//
+//        Cookie refreshTokenCookie = this.createRefreshTokenCookie(refreshToken);
+//
+//        response.addCookie(refreshTokenCookie);
+//        response.addCookie(cookie);
         return ApiResponse.setSuccess(new TokenResponse(accessToken, refreshToken, jwtService.getAccessExpirationTimeMs(), user.toUserDTO()));
     }
 
@@ -89,14 +93,22 @@ class AuthController {
         cookie.setMaxAge((int) (jwtService.getAccessExpirationTimeMs() / 1000));
         return cookie;
     }
+    private Cookie createRefreshTokenCookie(String refreshToken){
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(false);
+        cookie.setPath("/");
+        cookie.setMaxAge((int) (jwtService.getRefreshExpirationTimeMs() / 1000)); // Usar expiração do Refresh Token
+        return cookie;
+    }
 
     private UserSession createAndSaveSession(User user, String userAgent, String fingerprint){
         UserSession session = userSessionService.createSession(user);
         session.setUserAgent(userAgent);
         session.setFingerprint(fingerprint);
 
+        userSessionService.save(session);
         return session;
-//        return userSessionService.save(session);
     }
 
     private User checkLoginValue(String loginValue) throws BadCredentialsException {
@@ -138,7 +150,9 @@ class AuthController {
         @DecryptedBody @RequestBody RegisterRequest body
     ) throws BaseError {
         String salt  = BCrypt.gensalt();
-        String password = BCrypt.hashpw(body.password(), salt);
+        String rawHash = BCrypt.hashpw(body.password(), salt);
+
+        String prefixedPassword = "{bcrypt}" + rawHash;
 
         Set<Role> roles = new HashSet<Role>();
         roles.add(roleService.findByName(RoleName.ROLE_USER).orElseThrow());
@@ -155,7 +169,7 @@ class AuthController {
                 .surname(body.surname())
                 .username(body.username())
                 .email(body.email())
-                .password(password)
+                .password(prefixedPassword)
                 .salt(salt)
                 .superUser(false)
                 .roles(roles)
