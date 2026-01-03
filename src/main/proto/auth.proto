@@ -9,6 +9,11 @@ service AuthService {
   rpc Authenticate (AuthenticationRequest) returns (AuthenticationResponse);
 }
 
+// Serviço para decriptação centralizada
+service DecryptService {
+  rpc Decrypt (DecryptRequest) returns (DecryptResponse);
+}
+
 message AuthenticationRequest {
   string encrypted_payload = 1;
 }
@@ -16,4 +21,14 @@ message AuthenticationRequest {
 message AuthenticationResponse {
   bool success = 1;
   string message = 2;
+}
+
+message DecryptRequest {
+  string encrypted_data = 1;
+}
+
+message DecryptResponse {
+  bool success = 1;
+  string decrypted_data = 2;
+  string error_message = 3;
 }

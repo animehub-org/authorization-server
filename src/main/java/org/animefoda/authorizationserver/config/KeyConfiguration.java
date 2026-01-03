@@ -1,6 +1,5 @@
 package org.animefoda.authorizationserver.config;
 
-import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -51,17 +50,26 @@ public class KeyConfiguration {
                 .build();
     }
 
+    // JWKSource exposto como Bean para o Authorization Server usar no endpoint
+    // /oauth2/jwks
+    @Bean
+    public JWKSource<SecurityContext> jwkSource(RSAPublicKey rsaPublicKey, RSAPrivateKey rsaPrivateKey) {
+        RSAKey rsaKey = new RSAKey.Builder(rsaPublicKey)
+                .privateKey(rsaPrivateKey)
+                .keyID(java.util.UUID.randomUUID().toString())
+                .build();
+        return new ImmutableJWKSet<>(new JWKSet(rsaKey));
+    }
+
     // AQUI: O Bean do JwtEncoder (que você usará para gerar os tokens)
     @Bean
-    public JwtEncoder jwtEncoder(RSAPublicKey rsaPublicKey, RSAPrivateKey rsaPrivateKey) {
-        JWK jwk = new RSAKey.Builder(rsaPublicKey).privateKey(rsaPrivateKey).build();
-        JWKSource<SecurityContext> jwkSource = new ImmutableJWKSet<>(new JWKSet(jwk));
+    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
         return new NimbusJwtEncoder(jwkSource);
     }
-//    @Bean
-//    public BCryptPasswordEncoder bCryptPasswordEncoder() {
-//        return new BCryptPasswordEncoder();
-//    }
+    // @Bean
+    // public BCryptPasswordEncoder bCryptPasswordEncoder() {
+    // return new BCryptPasswordEncoder();
+    // }
 
     @Bean
     @Primary
