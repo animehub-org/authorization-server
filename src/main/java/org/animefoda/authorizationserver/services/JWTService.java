@@ -37,9 +37,13 @@ public class JWTService {
     private final RSAPrivateKey rsaPrivateKey;
     private final RSAPublicKey rsaPublicKey;
 
+    @Value("${spring.security.oauth2.authorizationserver.issuer}")
+    private String issuer;
+
     private String generateToken(Map<String, Object> claims, UserSession userSession, long expiration) {
         return Jwts.builder()
                 .claims(claims)
+                .issuer(issuer) // Adiciona o issuer configurado
                 .subject(userSession.getUser().getId().toString())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + expiration))
@@ -47,28 +51,29 @@ public class JWTService {
                 .compact();
     }
 
-    public String generateAccessToken(UserSession session){
+    public String generateAccessToken(UserSession session) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("accessToken", UUID.randomUUID());
         List<String> roles = session.getUser().getRoles().stream()
                 .map(Role::getName)
                 .collect(Collectors.toList());
 
-        if(session.getUser().isSuperUser()) roles.add(RoleName.ROLE_SUPERUSER.toString());
+        if (session.getUser().isSuperUser())
+            roles.add(RoleName.ROLE_SUPERUSER.toString());
 
         // 2. Adiciona as roles ao payload sob a chave 'roles' (ou 'scope')
         claims.put("roles", roles);
-//        claims.put("superuser", session.getUser().isSuperUser());
+        // claims.put("superuser", session.getUser().isSuperUser());
         return this.generateToken(claims, session, this.accessExpirationTimeMs);
     }
 
-    public String generateRefreshToken(UserSession session){
+    public String generateRefreshToken(UserSession session) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("refreshToken", session.getEmbeddedKey().getSessionId());
         return this.generateToken(claims, session, this.refreshExpirationTimeMs);
     }
 
-    public boolean isAccessTokenValid(String accessToken){
+    public boolean isAccessTokenValid(String accessToken) {
         UUID accessId = this.extractAccessId(accessToken);
         Optional<AccessSession> session = this.accessService.findByAccessId(accessId);
         return session.isPresent() && session.get().isActive();
@@ -80,15 +85,15 @@ public class JWTService {
         return session.isPresent() && session.get().isActive();
     }
 
-    public UUID extractSubject(String accessToken){
+    public UUID extractSubject(String accessToken) {
         return UUID.fromString(extractAllClaims(accessToken).getSubject());
     }
 
-    public UUID extractAccessId(String accessToken){
+    public UUID extractAccessId(String accessToken) {
         return extractClaim(accessToken, claims -> claims.get("accessId", UUID.class));
     }
 
-    public UUID extractRefreshId(String refreshToken){
+    public UUID extractRefreshId(String refreshToken) {
         return extractClaim(refreshToken, claims -> claims.get("refreshId", UUID.class));
     }
 
@@ -116,8 +121,7 @@ public class JWTService {
             AccessService accessService,
             // As chaves agora são injetadas como Beans
             RSAPrivateKey rsaPrivateKey,
-            RSAPublicKey rsaPublicKey
-    ) {
+            RSAPublicKey rsaPublicKey) {
         this.userSessionService = userSessionService;
         this.accessService = accessService;
         this.accessExpirationTimeMs = accessExpirationTimeMs;

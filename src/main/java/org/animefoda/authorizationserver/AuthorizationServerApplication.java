@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 @SpringBootApplication
 @EnableJpaRepositories(basePackages = "entities")
-@ComponentScan(basePackages = {"services", "exception", "entities", "org.animefoda.authorizationserver"})
+@ComponentScan(basePackages = {"services", "exception", "entities","configuration", "org.animefoda.authorizationserver"})
 @EntityScan(basePackages = "entities")
 public class AuthorizationServerApplication {
 

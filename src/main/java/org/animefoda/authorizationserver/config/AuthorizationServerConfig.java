@@ -1,17 +1,26 @@
 package org.animefoda.authorizationserver.config;
 
+import org.animefoda.authorizationserver.security.ResourceOwnerPasswordAuthenticationToken;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
+import org.springframework.security.oauth2.server.authorization.token.*;
 
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import entities.usersession.UserSession;
+import entities.role.Role;
+import java.util.stream.Collectors;
 import java.time.Duration;
 import java.util.UUID;
 
@@ -21,6 +30,12 @@ public class AuthorizationServerConfig {
         @Value("${spring.security.oauth2.authorizationserver.issuer:http://localhost:8080}")
         private String issuer;
 
+        @Value("${oauth2.client.user-frontend.redirect-uri:http://localhost:5173}")
+        private String userFrontendRedirectUri;
+
+        @Value("${oauth2.client.admin-frontend.redirect-uri:http://localhost:5174}")
+        private String adminFrontendRedirectUri;
+
         @Bean
         public AuthorizationServerSettings authorizationServerSettings() {
                 return AuthorizationServerSettings.builder()
@@ -29,58 +44,123 @@ public class AuthorizationServerConfig {
         }
 
         @Bean
+        public OAuth2AuthorizationService authorizationService() {
+                return new InMemoryOAuth2AuthorizationService();
+        }
+
+        @Bean
+        public OAuth2TokenGenerator<?> tokenGenerator(JwtEncoder jwtEncoder,
+                        OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer) {
+                JwtGenerator jwtGenerator = new JwtGenerator(jwtEncoder);
+                jwtGenerator.setJwtCustomizer(jwtCustomizer);
+                OAuth2AccessTokenGenerator accessTokenGenerator = new OAuth2AccessTokenGenerator();
+                OAuth2RefreshTokenGenerator refreshTokenGenerator = new OAuth2RefreshTokenGenerator();
+                return new DelegatingOAuth2TokenGenerator(
+                                jwtGenerator, accessTokenGenerator, refreshTokenGenerator);
+        }
+
+        @Bean
+        public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
+                return context -> {
+                        if (context.getPrincipal() instanceof UsernamePasswordAuthenticationToken) {
+                                UsernamePasswordAuthenticationToken userAuth = (UsernamePasswordAuthenticationToken) context
+                                                .getPrincipal();
+                                if (userAuth.getDetails() instanceof UserSession) {
+                                        UserSession session = (UserSession) userAuth.getDetails();
+
+                                        // Add legacy claims
+                                        context.getClaims().claim("accessToken", UUID.randomUUID().toString());
+                                        context.getClaims().claim("roles",
+                                                        session.getUser().getRoles().stream().map(Role::getName)
+                                                                        .collect(Collectors.toList()));
+
+                                        // Set Subject to User ID
+                                        context.getClaims().subject(session.getUser().getId().toString());
+                                }
+                        }
+                };
+        }
+
+        @Bean
         public RegisteredClientRepository registeredClientRepository() {
 
-                // --- Configuração para o Client 1: FRONTEND (User Login Flow) ---
-                // ID do cliente é o que o seu frontend vai usar para se identificar
-                RegisteredClient frontendClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                                .clientId("my-client-frontend") // ID público
-                                // Use {noop} para senhas em desenvolvimento, use BCrypt para produção!
-                                .clientSecret("{noop}frontend-secret")
-                                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                // --- Client 1: USER FRONTEND (Público - para usuários normais) ---
+                RegisteredClient userFrontendClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                                .clientId("user-frontend")
+                                // Cliente PÚBLICO - sem secret
+                                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
 
-                                // Tipos de concessão para login de usuário e renovação de token
+                                // Grant types for user login
                                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                                .authorizationGrantType(ResourceOwnerPasswordAuthenticationToken.PASSWORD_GRANT_TYPE)
 
-                                // URLs de redirecionamento após o login
-                                .redirectUri("http://localhost:5173/authorized")
+                                // Redirect URLs (configurável via env)
+                                .redirectUri(userFrontendRedirectUri + "/authorized")
+                                .redirectUri(userFrontendRedirectUri + "/callback")
 
-                                // Escopos (permissões) que o cliente pode solicitar
+                                // Scopes
                                 .scope("openid")
                                 .scope("profile")
                                 .scope("user.read")
 
-                                // Configurações do Token
+                                // Token settings
                                 .tokenSettings(TokenSettings.builder()
-                                                .accessTokenTimeToLive(Duration.ofMinutes(15)) // Access Token de 15
-                                                                                               // minutos
-                                                .refreshTokenTimeToLive(Duration.ofDays(7)) // Refresh Token de 7 dias
+                                                .accessTokenTimeToLive(Duration.ofHours(1))
+                                                .refreshTokenTimeToLive(Duration.ofDays(30))
                                                 .build())
 
-                                // Requer consentimento do usuário
-                                .clientSettings(ClientSettings.builder().requireAuthorizationConsent(true).build())
+                                .clientSettings(ClientSettings.builder()
+                                                .requireAuthorizationConsent(false)
+                                                .requireProofKey(false) // Não exige PKCE para password grant
+                                                .build())
                                 .build();
 
-                // --- Configuração para o Client 2: ADMIN API (Server-to-Server Flow) ---
-                // Este é um serviço que precisa de um token para si mesmo, sem um usuário
-                // logado
+                // --- Client 2: ADMIN FRONTEND (Público - segurança via roles) ---
+                RegisteredClient adminFrontendClient = RegisteredClient.withId(UUID.randomUUID().toString())
+                                .clientId("admin-frontend")
+                                // Cliente PÚBLICO - sem secret (segurança está nas roles do usuário)
+                                .clientAuthenticationMethod(ClientAuthenticationMethod.NONE)
+
+                                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                                .authorizationGrantType(ResourceOwnerPasswordAuthenticationToken.PASSWORD_GRANT_TYPE)
+
+                                // Redirect URLs para admin (configurável via env)
+                                .redirectUri(adminFrontendRedirectUri + "/authorized")
+                                .redirectUri(adminFrontendRedirectUri + "/callback")
+
+                                // Scopes
+                                .scope("openid")
+                                .scope("profile")
+                                .scope("admin.read")
+                                .scope("admin.write")
+
+                                .tokenSettings(TokenSettings.builder()
+                                                .accessTokenTimeToLive(Duration.ofHours(2))
+                                                .refreshTokenTimeToLive(Duration.ofDays(30))
+                                                .build())
+
+                                .clientSettings(ClientSettings.builder()
+                                                .requireAuthorizationConsent(false)
+                                                .requireProofKey(false)
+                                                .build())
+                                .build();
+
+                // --- Client 3: ADMIN API (Server-to-Server - mantém secret) ---
                 RegisteredClient adminApiClient = RegisteredClient.withId(UUID.randomUUID().toString())
                                 .clientId("admin-service-api")
                                 .clientSecret("{noop}admin-secret-key")
                                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
 
-                                // Tipo de concessão Client Credentials para comunicação Server-to-Server
                                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
 
-                                .scope("admin.write") // Permissão para escrita/administração
+                                .scope("admin.write")
                                 .tokenSettings(TokenSettings.builder()
-                                                .accessTokenTimeToLive(Duration.ofHours(1)) // Token Server-to-Server de
-                                                                                            // 1 hora
+                                                .accessTokenTimeToLive(Duration.ofHours(1))
                                                 .build())
                                 .build();
 
-                // Retorna um repositório em memória com ambos os clientes registrados
-                return new InMemoryRegisteredClientRepository(frontendClient, adminApiClient);
+                return new InMemoryRegisteredClientRepository(userFrontendClient, adminFrontendClient, adminApiClient);
         }
 }
